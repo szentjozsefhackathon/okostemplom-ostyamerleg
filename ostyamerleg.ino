@@ -21,11 +21,17 @@
 byte mac[] = {0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed};
 EthernetClient net;
 MQTTClient client;
-bool handlingMessage = false;
 
 void connect();
 void messageReceived(String &topic, String &payload);
 #endif
+
+void tare();
+bool tareFlag = false;
+
+#define NO_SCALE -1.0f
+void setScale(float scale);
+float setScaleTo = NO_SCALE;
 
 HX711 loadCell;
 unsigned long lastMillis = 0;
@@ -59,6 +65,8 @@ void setup()
 #endif
 
   pinMode(TARE_BUTTON_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(TARE_BUTTON_PIN), tare, RISING);
+
   loadCell.begin(LOADCELL_DATA_PIN, LOADCELL_SCK_PIN);
   loadCell.set_scale(LOADCELL_DEFAULT_DIVIDER);
 
@@ -89,17 +97,19 @@ void loop()
   {
     connect();
   }
-
-  if (handlingMessage)
-  {
-    return;
-  }
 #endif
 
-  if (digitalRead(TARE_BUTTON_PIN) == LOW)
+  if (tareFlag)
   {
     loadCell.tare();
     Serial.println("tare");
+    tareFlag = false;
+  }
+  else if (setScaleTo >= 0.0f)
+  {
+    loadCell.set_scale(setScaleTo);
+    Serial.println("scale");
+    setScaleTo = NO_SCALE;
   }
   else if (millis() - lastMillis > 1000)
   {
@@ -111,6 +121,16 @@ void loop()
     client.publish("/weight", String(weight));
 #endif
   }
+}
+
+void tare()
+{
+  tareFlag = true;
+}
+
+void setScale(float scale)
+{
+  setScaleTo = scale;
 }
 
 #if WITH_MQTT
@@ -125,7 +145,6 @@ void connect()
     delay(1000);
   }
   Serial.println("\nconnected!");
-  handlingMessage = false;
 
   client.subscribe("/tare");
   client.subscribe("/divider");
@@ -133,7 +152,6 @@ void connect()
 
 void messageReceived(String &topic, String &payload)
 {
-  handlingMessage = true;
   Serial.println("incoming: " + topic + " - " + payload);
 
   // Note: Do not use the client in the callback to publish, subscribe or
@@ -143,14 +161,11 @@ void messageReceived(String &topic, String &payload)
 
   if (topic.equals("/tare"))
   {
-    loadCell.tare();
-    Serial.println("tare");
+    tare();
   }
   else if (topic.equals("/divider"))
   {
-    loadCell.set_scale(payload.toFloat());
-    Serial.println("scale");
+    setScale(payload.toFloat());
   }
-  handlingMessage = false;
 }
 #endif
