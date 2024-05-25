@@ -19,11 +19,12 @@
 #include <HX711.h>
 
 #define TARE_BUTTON_PIN 13
-#define LOADCELL_DATA_PIN 3
+#define LOADCELL_DATA_PIN ESP32 ? 16 : 3
 #define LOADCELL_SCK_PIN 4
 
 // TODO: mi legyen az alapértelmezett osztó
 #define LOADCELL_DEFAULT_DIVIDER 1000
+#define WEIGHT_MIN_DIFF 0.2f
 #include "config.h"
 
 #if WITH_ETHERNET
@@ -59,6 +60,7 @@ float setScaleTo = NO_SCALE;
 
 HX711 loadCell;
 unsigned long lastMillis = 0;
+float lastWeight = 0;
 
 void setup()
 {
@@ -142,25 +144,42 @@ void loop()
 
   if (tareFlag)
   {
+    loadCell.power_up();
     loadCell.tare();
+    loadCell.power_down();
     Serial.println("tare");
     tareFlag = false;
   }
-  else if (setScaleTo >= 0.0f)
+  if (setScaleTo != NO_SCALE)
   {
+    loadCell.power_up();
     loadCell.set_scale(setScaleTo);
+    loadCell.power_down();
     Serial.println("scale");
     setScaleTo = NO_SCALE;
   }
-  else if (millis() - lastMillis > 1000)
+  if (millis() - lastMillis > 1000)
   {
-    lastMillis = millis();
-    float weight = loadCell.get_units(10);
-    Serial.print("weight: ");
-    Serial.println(weight, 2);
+    loadCell.power_up();
+    if (loadCell.wait_ready_timeout())
+    {
+      float weight = loadCell.get_units(10);
+      if (fabs(weight - lastWeight) >= WEIGHT_MIN_DIFF)
+      {
+        Serial.print("weight: ");
+        Serial.println(weight, 2);
 #if WITH_MQTT
-    mqtt.publish(mqttTopic(MQTT_TOPIC_WEIGHT), String(weight));
+        mqtt.publish(mqttTopic(MQTT_TOPIC_WEIGHT), String(weight));
 #endif
+      }
+      lastMillis = millis();
+      lastWeight = weight;
+    }
+    else
+    {
+      Serial.println("Load cell read timeout");
+    }
+    loadCell.power_down();
   }
 }
 
