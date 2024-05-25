@@ -1,6 +1,11 @@
+#define WITH_MQTT 0
+
+#if WITH_MQTT
 #include <Ethernet.h>
-#include <HX711.h>
 #include <MQTT.h>
+#endif
+
+#include <HX711.h>
 
 #include "mqtt_config.h"
 
@@ -10,36 +15,40 @@
 #define LOADCELL_SCK_PIN PWM_CH4
 
 // TODO: mi legyen az alapértelmezett osztó
-#define LOADCELL_DEFAULT_DIVIDER 5895655
+#define LOADCELL_DEFAULT_DIVIDER 1000
 
+#if WITH_MQTT
 byte mac[] = {0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed};
-
 EthernetClient net;
 MQTTClient client;
-HX711 loadCell;
-unsigned long lastMillis = 0;
 bool handlingMessage = false;
 
 void connect();
 void messageReceived(String &topic, String &payload);
+#endif
+
+HX711 loadCell;
+unsigned long lastMillis = 0;
 
 void setup()
 {
   Serial.begin(115200);
 
-  Serial.println("Initialize Ethernet with DHCP: ");
+#if WITH_MQTT
+  Serial.print("Initialize Ethernet with DHCP: ");
   Ethernet.init(ETHERNET_CS_PIN);
-  if (Ethernet.begin(mac) == 0)
+  if (Ethernet.begin(mac, 2000) == 0)
   {
-    Serial.println("failed to configure Ethernet using DHCP");
+    Serial.print("failed to configure Ethernet using DHCP");
     if (Ethernet.hardwareStatus() == EthernetNoHardware)
     {
-      Serial.println("Ethernet shield not found");
+      Serial.print(" (Ethernet shield not found)");
     }
     else if (Ethernet.linkStatus() == LinkOFF)
     {
-      Serial.println("Ethernet cable is not connected");
+      Serial.print(" (Ethernet cable is not connected)");
     }
+    Serial.println();
     while (true)
     {
       delay(1);
@@ -47,11 +56,13 @@ void setup()
   }
   Serial.print("IP address is ");
   Serial.println(Ethernet.localIP());
+#endif
 
   pinMode(TARE_BUTTON_PIN, INPUT_PULLUP);
   loadCell.begin(LOADCELL_DATA_PIN, LOADCELL_SCK_PIN);
   loadCell.set_scale(LOADCELL_DEFAULT_DIVIDER);
 
+#if WITH_MQTT
 #ifdef MQTT_IP
 #ifdef MQTT_HOST
 #error "Both MQTT_IP and MQTT_HOST is defined"
@@ -67,10 +78,12 @@ void setup()
   client.onMessage(messageReceived);
 
   connect();
+#endif // WITH_MQTT
 }
 
 void loop()
 {
+#if WITH_MQTT
   client.loop();
   if (!client.connected())
   {
@@ -81,10 +94,12 @@ void loop()
   {
     return;
   }
+#endif
 
   if (digitalRead(TARE_BUTTON_PIN) == LOW)
   {
     loadCell.tare();
+    Serial.println("tare");
   }
   else if (millis() - lastMillis > 1000)
   {
@@ -92,10 +107,13 @@ void loop()
     float weight = loadCell.get_units(10);
     Serial.print("weight: ");
     Serial.println(weight, 2);
+#if WITH_MQTT
     client.publish("/weight", String(weight));
+#endif
   }
 }
 
+#if WITH_MQTT
 void connect()
 {
   Serial.print("connecting...");
@@ -135,3 +153,4 @@ void messageReceived(String &topic, String &payload)
   }
   handlingMessage = false;
 }
+#endif
