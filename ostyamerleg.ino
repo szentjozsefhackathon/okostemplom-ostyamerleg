@@ -42,14 +42,14 @@ String ipToString(IPAddress ip);
 #if WITH_MQTT
 MQTTClient mqtt;
 
-const char *MQTT_TOPIC_TARE = "/tare";
-const char *MQTT_TOPIC_DIVIDER = "/divider";
-const char *MQTT_TOPIC_WEIGHT = "/weight";
-const char *MQTT_TOPIC_GAIN = "/gain";
+const String MQTT_TOPIC_TARE = String("/tare");
+const String MQTT_TOPIC_DIVIDER = String("/divider");
+const String MQTT_TOPIC_WEIGHT = String("/weight");
+const String MQTT_TOPIC_GAIN = String("/gain");
 
 void connect();
 void messageReceived(String &topic, String &payload);
-String mqttTopic(const char *name);
+String mqttTopic(const String name);
 #endif
 
 void tare();
@@ -227,9 +227,9 @@ String ipToString(IPAddress ip)
 #endif
 
 #if WITH_MQTT
-String mqttTopic(const char *name)
+String mqttTopic(const String name)
 {
-  return String("scale/") + ipStr + String(name);
+  return String("scale/") + ipStr + name;
 }
 
 void connect()
@@ -258,15 +258,15 @@ void messageReceived(String &topic, String &payload)
   // sending and receiving acknowledgments. Instead, change a global variable,
   // or push to a queue and handle it in the loop after calling `mqtt.loop()`.
 
-  if (topic.endsWith(String(MQTT_TOPIC_TARE)))
+  if (topic.endsWith(MQTT_TOPIC_TARE))
   {
     tare();
   }
-  else if (topic.endsWith(String(MQTT_TOPIC_DIVIDER)))
+  else if (topic.endsWith(MQTT_TOPIC_DIVIDER))
   {
     setScale(payload.toFloat());
   }
-  else if (topic.endsWith(String(MQTT_TOPIC_GAIN)))
+  else if (topic.endsWith(MQTT_TOPIC_GAIN))
   {
     setGain(payload.toInt());
   }
