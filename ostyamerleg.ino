@@ -167,6 +167,11 @@ void loop()
   }
   if (setScaleTo != NO_SCALE)
   {
+    if (setScaleTo <= 0)
+    {
+      setScaleTo = LOADCELL_DEFAULT_DIVIDER;
+      mqtt.publish(mqttTopic(MQTT_TOPIC_DIVIDER), String(setScaleTo));
+    }
     loadCell.power_up();
     loadCell.set_scale(setScaleTo);
     loadCell.power_down();
