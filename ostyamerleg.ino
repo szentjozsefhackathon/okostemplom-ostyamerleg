@@ -21,9 +21,15 @@
 byte mac[] = {0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed};
 EthernetClient net;
 MQTTClient client;
+String ipStr;
+
+const char* MQTT_TOPIC_TARE = "/tare";
+const char* MQTT_TOPIC_DIVIDER = "/divider";
+const char* MQTT_TOPIC_WEIGHT = "/weight";
 
 void connect();
 void messageReceived(String &topic, String &payload);
+String mqttTopic(const char *name);
 #endif
 
 void tare();
@@ -43,7 +49,7 @@ void setup()
 #if WITH_MQTT
   Serial.print("Initialize Ethernet with DHCP: ");
   Ethernet.init(ETHERNET_CS_PIN);
-  if (Ethernet.begin(mac, 2000) == 0)
+  if (Ethernet.begin(mac, 15000) == 0)
   {
     Serial.print("failed to configure Ethernet using DHCP");
     if (Ethernet.hardwareStatus() == EthernetNoHardware)
@@ -61,7 +67,9 @@ void setup()
     }
   }
   Serial.print("IP address is ");
-  Serial.println(Ethernet.localIP());
+  IPAddress localIp = Ethernet.localIP();
+  ipStr = String(localIp[0]) + String(".") + String(localIp[1]) + String(".") + String(localIp[2]) + String(".") + String(localIp[3]);
+  Serial.println(localIp);
 #endif
 
   pinMode(TARE_BUTTON_PIN, INPUT_PULLUP);
@@ -118,7 +126,7 @@ void loop()
     Serial.print("weight: ");
     Serial.println(weight, 2);
 #if WITH_MQTT
-    client.publish("/weight", String(weight));
+    client.publish(mqttTopic(MQTT_TOPIC_WEIGHT), String(weight));
 #endif
   }
 }
@@ -134,11 +142,14 @@ void setScale(float scale)
 }
 
 #if WITH_MQTT
+String mqttTopic(const char *name)
+{
+  return String("scale/") + ipStr + String(name);
+}
+
 void connect()
 {
   Serial.print("connecting...");
-  IPAddress localIp = Ethernet.localIP();
-  String ipStr = String(localIp[0]) + String(".") + String(localIp[1]) + String(".") + String(localIp[2]) + String(".") + String(localIp[3]);
   while (!client.connect(ipStr.c_str(), MQTT_USER, MQTT_PASSWORD))
   {
     Serial.print(".");
@@ -146,8 +157,9 @@ void connect()
   }
   Serial.println("\nconnected!");
 
-  client.subscribe("/tare");
-  client.subscribe("/divider");
+  client.publish(mqttTopic(MQTT_TOPIC_DIVIDER), String(loadCell.get_scale()));
+  client.subscribe(mqttTopic(MQTT_TOPIC_TARE));
+  client.subscribe(mqttTopic(MQTT_TOPIC_DIVIDER));
 }
 
 void messageReceived(String &topic, String &payload)
@@ -159,11 +171,11 @@ void messageReceived(String &topic, String &payload)
   // sending and receiving acknowledgments. Instead, change a global variable,
   // or push to a queue and handle it in the loop after calling `client.loop()`.
 
-  if (topic.equals("/tare"))
+  if (topic.endsWith(String(MQTT_TOPIC_TARE)))
   {
     tare();
   }
-  else if (topic.equals("/divider"))
+  else if (topic.endsWith(String(MQTT_TOPIC_DIVIDER)))
   {
     setScale(payload.toFloat());
   }
