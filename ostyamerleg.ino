@@ -22,8 +22,7 @@
 #define LOADCELL_DATA_PIN ESP32 ? 16 : 3
 #define LOADCELL_SCK_PIN 4
 
-// TODO: mi legyen az alapértelmezett osztó
-#define LOADCELL_DEFAULT_DIVIDER 1000
+#define LOADCELL_DEFAULT_DIVIDER 450
 #define LOADCELL_GAIN_128 128
 #define LOADCELL_GAIN_64 64
 #define LOADCELL_DEFAULT_GAIN LOADCELL_GAIN_128
@@ -113,7 +112,7 @@ void setup()
   pinMode(TARE_BUTTON_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(TARE_BUTTON_PIN), tare, RISING);
 
-  loadCell.begin(LOADCELL_DATA_PIN, LOADCELL_SCK_PIN, loadCellGain);
+  loadCell.begin(LOADCELL_DATA_PIN, LOADCELL_SCK_PIN, LOADCELL_DEFAULT_GAIN);
   loadCell.set_scale(LOADCELL_DEFAULT_DIVIDER);
 
 #if WITH_MQTT
