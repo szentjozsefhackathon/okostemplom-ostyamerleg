@@ -4,13 +4,15 @@
 
 #include "mqtt_config.h"
 
-const int ETHERNET_CS_PIN = 10;
-const int LOADCELL_DATA_PIN = 2;
-const int LOADCELL_SCK_PIN = 3;
+#define TARE_BUTTON_PIN PIN_LED_13
+#define ETHERNET_CS_PIN PWM_CH2
+#define LOADCELL_DATA_PIN PWM_CH3
+#define LOADCELL_SCK_PIN PWM_CH4
 
-const long LOADCELL_DIVIDER = 5895655; // TODO: mi legyen az alapértelmezett osztó
+// TODO: mi legyen az alapértelmezett osztó
+#define LOADCELL_DEFAULT_DIVIDER 5895655
 
-byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+byte mac[] = {0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed};
 
 EthernetClient net;
 MQTTClient client;
@@ -45,9 +47,9 @@ void setup()
   Serial.print("IP address is ");
   Serial.println(Ethernet.localIP());
 
-  pinMode(13, INPUT_PULLUP);
+  pinMode(TARE_BUTTON_PIN, INPUT_PULLUP);
   loadCell.begin(LOADCELL_DATA_PIN, LOADCELL_SCK_PIN);
-  loadCell.set_scale(LOADCELL_DIVIDER);
+  loadCell.set_scale(LOADCELL_DEFAULT_DIVIDER);
 
 #ifdef MQTT_IP
 #ifdef MQTT_HOST
@@ -74,7 +76,7 @@ void loop()
     connect();
   }
 
-  if (digitalRead(13) == LOW)
+  if (digitalRead(TARE_BUTTON_PIN) == LOW)
   {
     loadCell.tare();
   }
