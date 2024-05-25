@@ -24,6 +24,9 @@
 
 // TODO: mi legyen az alapértelmezett osztó
 #define LOADCELL_DEFAULT_DIVIDER 1000
+#define LOADCELL_GAIN_128 128
+#define LOADCELL_GAIN_64 64
+#define LOADCELL_DEFAULT_GAIN LOADCELL_GAIN_128
 #define WEIGHT_MIN_DIFF 0.2f
 #include "config.h"
 
@@ -59,13 +62,14 @@ bool tareFlag = false;
 void setScale(float scale);
 float setScaleTo = NO_SCALE;
 
-#define NO_GAIN -1
-void setGain(int gain);
-int setGainTo = NO_GAIN;
+#define NO_GAIN 255
+void setGain(byte gain);
+byte setGainTo = NO_GAIN;
 
 HX711 loadCell;
 unsigned long lastMillis = 0;
 float lastWeight = 0;
+byte loadCellGain = LOADCELL_DEFAULT_GAIN;
 
 void setup()
 {
@@ -114,7 +118,7 @@ void setup()
   pinMode(TARE_BUTTON_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(TARE_BUTTON_PIN), tare, RISING);
 
-  loadCell.begin(LOADCELL_DATA_PIN, LOADCELL_SCK_PIN);
+  loadCell.begin(LOADCELL_DATA_PIN, LOADCELL_SCK_PIN, loadCellGain);
   loadCell.set_scale(LOADCELL_DEFAULT_DIVIDER);
 
 #if WITH_MQTT
@@ -165,15 +169,16 @@ void loop()
   }
   if (setGainTo != NO_GAIN)
   {
-    if (setGainTo == HX711_CHANNEL_A_GAIN_64 || setGainTo == HX711_CHANNEL_A_GAIN_64)
+    if (setGainTo == LOADCELL_GAIN_64 || setGainTo == LOADCELL_GAIN_128)
     {
       loadCell.power_up();
       loadCell.set_gain(setGainTo);
       loadCell.power_down();
+      loadCellGain = setGainTo;
     }
     else
     {
-      setGainTo = loadCell.get_gain();
+      setGainTo = loadCellGain;
       mqtt.publish(mqttTopic(MQTT_TOPIC_GAIN), String(setGainTo));
     }
     Serial.printf("gain: %d\n", setGainTo);
@@ -214,7 +219,7 @@ void setScale(float scale)
   setScaleTo = scale;
 }
 
-void setGain(int gain)
+void setGain(byte gain)
 {
   setGainTo = gain;
 }
@@ -243,7 +248,7 @@ void connect()
   Serial.println(" connected to " + ipToString(IPAddress(MQTT_IP)));
 
   mqtt.publish(mqttTopic(MQTT_TOPIC_DIVIDER), String(loadCell.get_scale()));
-  mqtt.publish(mqttTopic(MQTT_TOPIC_GAIN), String(loadCell.get_gain()));
+  mqtt.publish(mqttTopic(MQTT_TOPIC_GAIN), String(loadCellGain));
   mqtt.subscribe(mqttTopic(MQTT_TOPIC_TARE));
   mqtt.subscribe(mqttTopic(MQTT_TOPIC_DIVIDER));
   mqtt.subscribe(mqttTopic(MQTT_TOPIC_GAIN));
@@ -268,7 +273,7 @@ void messageReceived(String &topic, String &payload)
   }
   else if (topic.endsWith(MQTT_TOPIC_GAIN))
   {
-    setGain(payload.toInt());
+    setGain((byte)payload.toInt());
   }
 }
 #endif
