@@ -39,7 +39,6 @@ WiFiClient netClient;
 #if WITH_ETHERNET || WITH_WIFI
 byte mac[] = {0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed};
 String ipStr;
-String ipToString(IPAddress ip);
 #endif
 
 #if WITH_MQTT
@@ -95,6 +94,7 @@ void setup()
       delay(1);
     }
   }
+  ipStr = Ethernet.localIP().toString();
 #elif WITH_WIFI
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -104,15 +104,10 @@ void setup()
     Serial.print('.');
     delay(1000);
   }
+  ipStr = WiFi.localIP().toString();
 #endif
 #if WITH_ETHERNET || WITH_WIFI
-  Serial.print(" IP address is ");
-#if WITH_ETHERNET
-  ipStr = ipToString(Ethernet.localIP());
-#elif WITH_WIFI
-  ipStr = ipToString(WiFi.localIP());
-#endif
-  Serial.println(ipStr);
+  Serial.printf(" IP address is %s\n", ipStr.c_str());
 #endif
 
   pinMode(TARE_BUTTON_PIN, INPUT_PULLUP);
@@ -224,13 +219,6 @@ void setGain(byte gain)
   setGainTo = gain;
 }
 
-#if WITH_ETHERNET || WITH_WIFI
-String ipToString(IPAddress ip)
-{
-  return String(ip[0]) + String(".") + String(ip[1]) + String(".") + String(ip[2]) + String(".") + String(ip[3]);
-}
-#endif
-
 #if WITH_MQTT
 String mqttTopic(const String name)
 {
@@ -245,7 +233,7 @@ void connect()
     Serial.print(".");
     delay(1000);
   }
-  Serial.println(" connected to " + ipToString(IPAddress(MQTT_IP)));
+  Serial.printf(" connected to %d.%d.%d.%d\n", MQTT_IP);
 
   mqtt.publish(mqttTopic(MQTT_TOPIC_DIVIDER), String(loadCell.get_scale()));
   mqtt.publish(mqttTopic(MQTT_TOPIC_GAIN), String(loadCellGain));
