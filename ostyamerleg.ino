@@ -2,6 +2,8 @@
 #include <HX711.h>
 #include <MQTT.h>
 
+#include "mqtt_config.h"
+
 const int ETHERNET_CS_PIN = 10;
 const int LOADCELL_DATA_PIN = 2;
 const int LOADCELL_SCK_PIN = 3;
@@ -47,7 +49,18 @@ void setup()
   loadCell.begin(LOADCELL_DATA_PIN, LOADCELL_SCK_PIN);
   loadCell.set_scale(LOADCELL_DIVIDER);
 
-  client.begin("my.mqtt.server", net); // TODO: MQTT broker IP címe
+#ifdef MQTT_IP
+#ifdef MQTT_HOST
+#error "Both MQTT_IP and MQTT_HOST is defined"
+#endif // MQTT_HOST
+  client.begin(IPAddress(MQTT_IP), MQTT_PORT, net);
+#else // MQTT_IP
+#ifdef MQTT_HOST
+  client.begin(MQTT_HOST, MQTT_PORT, net);
+#else // MQTT_HOST
+#error "Either MQTT_IP or MQTT_HOST is required"
+#endif // MQTT_HOST
+#endif // MQTT_IP
   client.onMessage(messageReceived);
 
   connect();
@@ -78,7 +91,9 @@ void loop()
 void connect()
 {
   Serial.print("connecting...");
-  while (!client.connect("arduino", "public", "public"))
+  IPAddress localIp = Ethernet.localIP();
+  String ipStr = String(localIp[0]) + String(".") + String(localIp[1]) + String(".") + String(localIp[2]) + String(".") + String(localIp[3]);
+  while (!client.connect(ipStr.c_str(), MQTT_USER, MQTT_PASSWORD))
   {
     Serial.print(".");
     delay(1000);
