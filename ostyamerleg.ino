@@ -45,6 +45,7 @@ MQTTClient mqtt;
 const char *MQTT_TOPIC_TARE = "/tare";
 const char *MQTT_TOPIC_DIVIDER = "/divider";
 const char *MQTT_TOPIC_WEIGHT = "/weight";
+const char *MQTT_TOPIC_GAIN = "/gain";
 
 void connect();
 void messageReceived(String &topic, String &payload);
@@ -57,6 +58,10 @@ bool tareFlag = false;
 #define NO_SCALE -1.0f
 void setScale(float scale);
 float setScaleTo = NO_SCALE;
+
+#define NO_GAIN -1
+void setGain(int gain);
+int setGainTo = NO_GAIN;
 
 HX711 loadCell;
 unsigned long lastMillis = 0;
@@ -155,8 +160,24 @@ void loop()
     loadCell.power_up();
     loadCell.set_scale(setScaleTo);
     loadCell.power_down();
-    Serial.println("scale");
+    Serial.printf("scale: %f\n", setScaleTo);
     setScaleTo = NO_SCALE;
+  }
+  if (setGainTo != NO_GAIN)
+  {
+    if (setGainTo == HX711_CHANNEL_A_GAIN_64 || setGainTo == HX711_CHANNEL_A_GAIN_64)
+    {
+      loadCell.power_up();
+      loadCell.set_gain(setGainTo);
+      loadCell.power_down();
+    }
+    else
+    {
+      setGainTo = loadCell.get_gain();
+      mqtt.publish(mqttTopic(MQTT_TOPIC_GAIN), String(setGainTo));
+    }
+    Serial.printf("gain: %d\n", setGainTo);
+    setGainTo = NO_GAIN;
   }
   if (millis() - lastMillis > 1000)
   {
@@ -193,6 +214,11 @@ void setScale(float scale)
   setScaleTo = scale;
 }
 
+void setGain(int gain)
+{
+  setGainTo = gain;
+}
+
 #if WITH_ETHERNET || WITH_WIFI
 String ipToString(IPAddress ip)
 {
@@ -217,8 +243,10 @@ void connect()
   Serial.println(" connected to " + ipToString(IPAddress(MQTT_IP)));
 
   mqtt.publish(mqttTopic(MQTT_TOPIC_DIVIDER), String(loadCell.get_scale()));
+  mqtt.publish(mqttTopic(MQTT_TOPIC_GAIN), String(loadCell.get_gain()));
   mqtt.subscribe(mqttTopic(MQTT_TOPIC_TARE));
   mqtt.subscribe(mqttTopic(MQTT_TOPIC_DIVIDER));
+  mqtt.subscribe(mqttTopic(MQTT_TOPIC_GAIN));
 }
 
 void messageReceived(String &topic, String &payload)
@@ -237,6 +265,10 @@ void messageReceived(String &topic, String &payload)
   else if (topic.endsWith(String(MQTT_TOPIC_DIVIDER)))
   {
     setScale(payload.toFloat());
+  }
+  else if (topic.endsWith(String(MQTT_TOPIC_GAIN)))
+  {
+    setGain(payload.toInt());
   }
 }
 #endif
