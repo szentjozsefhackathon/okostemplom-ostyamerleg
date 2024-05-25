@@ -32,28 +32,29 @@
 
 #if WITH_ETHERNET
 EthernetClient netClient;
+byte mac[] = {0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed};
 #elif WITH_WIFI
 WiFiClient netClient;
 #endif
 
 #if WITH_ETHERNET || WITH_WIFI
-byte mac[] = {0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed};
 String ipStr;
 #endif
 
 #if WITH_MQTT
 MQTTClient mqtt;
 
-const String MQTT_TOPIC_TARE = String("/tare");
-const String MQTT_TOPIC_DIVIDER = String("/divider");
-const String MQTT_TOPIC_WEIGHT = String("/weight");
-const String MQTT_TOPIC_GAIN = String("/gain");
-const String MQTT_TOPIC_DELTA_T = String("/dt");
-const String MQTT_TOPIC_DELTA_M = String("/dm");
+const String MQTT_TOPIC_ROOT = String("scale/");
+const char *MQTT_TOPIC_WEIGHT = "/weight";
+const char *MQTT_TOPIC_TARE = "/tare";
+const char *MQTT_TOPIC_DIVIDER = "/divider";
+const char *MQTT_TOPIC_GAIN = "/gain";
+const char *MQTT_TOPIC_DELTA_T = "/dt";
+const char *MQTT_TOPIC_DELTA_M = "/dm";
 
 void connect();
 void messageReceived(String &topic, String &payload);
-String mqttTopic(const String name);
+String mqttTopic(const char *name);
 #endif
 
 void tare();
@@ -248,9 +249,9 @@ void setDeltaM(float dm)
 }
 
 #if WITH_MQTT
-String mqttTopic(const String name)
+String mqttTopic(const char *name)
 {
-  return String("scale/") + ipStr + name;
+  return MQTT_TOPIC_ROOT + ipStr + name;
 }
 
 void connect()
