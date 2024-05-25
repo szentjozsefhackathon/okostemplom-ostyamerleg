@@ -18,6 +18,7 @@ EthernetClient net;
 MQTTClient client;
 HX711 loadCell;
 unsigned long lastMillis = 0;
+bool handlingMessage = false;
 
 void connect();
 void messageReceived(String &topic, String &payload);
@@ -76,6 +77,11 @@ void loop()
     connect();
   }
 
+  if (handlingMessage)
+  {
+    return;
+  }
+
   if (digitalRead(TARE_BUTTON_PIN) == LOW)
   {
     loadCell.tare();
@@ -101,6 +107,7 @@ void connect()
     delay(1000);
   }
   Serial.println("\nconnected!");
+  handlingMessage = false;
 
   client.subscribe("/tare");
   client.subscribe("/divider");
@@ -108,6 +115,7 @@ void connect()
 
 void messageReceived(String &topic, String &payload)
 {
+  handlingMessage = true;
   Serial.println("incoming: " + topic + " - " + payload);
 
   // Note: Do not use the client in the callback to publish, subscribe or
@@ -115,19 +123,15 @@ void messageReceived(String &topic, String &payload)
   // sending and receiving acknowledgments. Instead, change a global variable,
   // or push to a queue and handle it in the loop after calling `client.loop()`.
 
-  if (topic.compareTo("/tare") == 0)
+  if (topic.equals("/tare"))
   {
     loadCell.tare();
     Serial.println("tare");
   }
-  else if (topic.compareTo("/divider") == 0)
+  else if (topic.equals("/divider"))
   {
     loadCell.set_scale(payload.toFloat());
     Serial.println("scale");
   }
-  else
-  {
-    return;
-  }
-  client.publish("/weight", nullptr);
+  handlingMessage = false;
 }
