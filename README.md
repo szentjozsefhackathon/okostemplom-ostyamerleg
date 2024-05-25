@@ -1,21 +1,23 @@
 # Okostemplom ostyamérleg
 
-Ezeken teszteltük:
+### Hasznos
+
+#### Ezeken teszteltük
 
 - Arduino UNO, DUE
 - ESP32 (ESP32-WROOM-DA)
 
-A működéshez szükséges könyvtárak:
+#### A működéshez szükséges könyvtárak
 
 - [HX711 Arduino Library](https://github.com/bogde/HX711)
 - [arduino-mqtt](https://github.com/256dpi/arduino-mqtt)
 
-Leírások:
+#### Leírások
 
 - [HX711 modul](docs/HX711-M.pdf)
 - [YZC-133-SCL-5](docs/YZC-133-SCL-5.pdf)
 
-Konfiguráció:
+### Konfiguráció
 
 1. config.h létrehozása
 
@@ -85,3 +87,14 @@ Konfiguráció:
 	// a mért értékek között legalább ekkora eltérésnek kell lennie MQTT-n publisheléshez
 	#define DEFAULT_DM .2f
 	```
+
+### MQTT
+
+A topic-ok felépítése: `scale/IP cím/...`
+
+- `.../weight`: a legutóbbi mért érték 2 tizedes kerekítéssel
+- `.../divider`: a mérés osztója (pozitív lebegőpontos szám, 0-val visszaállítható, alapértelmezett: `LOADCELL_DEFAULT_DIVIDER`)
+- `.../gain`: a mérő ADC erősítése (128 vagy 64 lehet csak, alapértelmezett: 128)
+- `.../dt`: a mérések közötti idő (pozitív egész szám, 0-val visszaállítható, alapértelmezett: `DEFAULT_DT`)
+- `.../dm`: a publishelt mérések közötti minimális eltérés (pozitív lebegőpontos szám, 0-val visszaállítható, alapértelmezett: `DEFAULT_DM`)
+- `.../tare`: nullázza a mért értéket (payloadtól függetlenül)
