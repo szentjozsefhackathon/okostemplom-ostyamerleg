@@ -22,12 +22,13 @@
 #define LOADCELL_DATA_PIN ESP32 ? 16 : 3
 #define LOADCELL_SCK_PIN 4
 
-#define LOADCELL_DEFAULT_DIVIDER 450
+#define LOADCELL_DEFAULT_OFFSET 41155ul
+#define LOADCELL_DEFAULT_DIVIDER 450.f
 #define LOADCELL_GAIN_128 128
 #define LOADCELL_GAIN_64 64
 #define LOADCELL_DEFAULT_GAIN LOADCELL_GAIN_128
 #define DEFAULT_DT 1000ul
-#define DEFAULT_DM 0.2f
+#define DEFAULT_DM .2f
 #include "config.h"
 
 #if WITH_ETHERNET
@@ -60,7 +61,7 @@ String mqttTopic(const char *name);
 void tare();
 bool tareFlag = false;
 
-#define NO_SCALE -1.0f
+#define NO_SCALE -1.f
 void setScale(float scale);
 float setScaleTo = NO_SCALE;
 
@@ -76,7 +77,7 @@ float deltaM = DEFAULT_DM;
 
 HX711 loadCell;
 unsigned long lastMillis = 0;
-float lastWeight = 0;
+float lastWeight = __FLT_MAX__;
 byte loadCellGain = LOADCELL_DEFAULT_GAIN;
 
 void setup()
@@ -124,6 +125,7 @@ void setup()
 
   loadCell.begin(LOADCELL_DATA_PIN, LOADCELL_SCK_PIN, LOADCELL_DEFAULT_GAIN);
   loadCell.set_scale(LOADCELL_DEFAULT_DIVIDER);
+  loadCell.set_offset(LOADCELL_DEFAULT_OFFSET);
 
 #if WITH_MQTT
 #ifdef MQTT_IP
@@ -160,7 +162,7 @@ void loop()
     loadCell.power_up();
     loadCell.tare();
     loadCell.power_down();
-    Serial.println("tare");
+    Serial.printf("tare, offset: %ld\n", loadCell.get_offset());
     tareFlag = false;
   }
   if (setScaleTo != NO_SCALE)
