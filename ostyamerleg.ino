@@ -26,7 +26,8 @@
 #define LOADCELL_GAIN_128 128
 #define LOADCELL_GAIN_64 64
 #define LOADCELL_DEFAULT_GAIN LOADCELL_GAIN_128
-#define WEIGHT_MIN_DIFF 0.2f
+#define DEFAULT_DT 1000ul
+#define DEFAULT_DM 0.2f
 #include "config.h"
 
 #if WITH_ETHERNET
@@ -47,6 +48,8 @@ const String MQTT_TOPIC_TARE = String("/tare");
 const String MQTT_TOPIC_DIVIDER = String("/divider");
 const String MQTT_TOPIC_WEIGHT = String("/weight");
 const String MQTT_TOPIC_GAIN = String("/gain");
+const String MQTT_TOPIC_DELTA_T = String("/dt");
+const String MQTT_TOPIC_DELTA_M = String("/dm");
 
 void connect();
 void messageReceived(String &topic, String &payload);
@@ -63,6 +66,12 @@ float setScaleTo = NO_SCALE;
 #define NO_GAIN 255
 void setGain(byte gain);
 byte setGainTo = NO_GAIN;
+
+void setDeltaT(unsigned long dt);
+unsigned long deltaT = DEFAULT_DT;
+
+void setDeltaM(float dm);
+float deltaM = DEFAULT_DM;
 
 HX711 loadCell;
 unsigned long lastMillis = 0;
@@ -178,13 +187,23 @@ void loop()
     Serial.printf("gain: %d\n", setGainTo);
     setGainTo = NO_GAIN;
   }
-  if (millis() - lastMillis > 1000)
+  if (deltaT <= 0)
+  {
+    deltaT = DEFAULT_DT;
+    mqtt.publish(mqttTopic(MQTT_TOPIC_DELTA_T), String(deltaT));
+  }
+  if (deltaM <= 0)
+  {
+    deltaM = DEFAULT_DM;
+    mqtt.publish(mqttTopic(MQTT_TOPIC_DELTA_M), String(deltaM));
+  }
+  if (millis() - lastMillis > deltaT)
   {
     loadCell.power_up();
     if (loadCell.wait_ready_timeout())
     {
       float weight = loadCell.get_units(10);
-      if (fabs(weight - lastWeight) >= WEIGHT_MIN_DIFF)
+      if (fabs(weight - lastWeight) >= deltaM)
       {
         Serial.print("weight: ");
         Serial.println(weight, 2);
@@ -218,6 +237,16 @@ void setGain(byte gain)
   setGainTo = gain;
 }
 
+void setDeltaT(unsigned long dt)
+{
+  deltaT = dt;
+}
+
+void setDeltaM(float dm)
+{
+  deltaM = dm;
+}
+
 #if WITH_MQTT
 String mqttTopic(const String name)
 {
@@ -236,9 +265,13 @@ void connect()
 
   mqtt.publish(mqttTopic(MQTT_TOPIC_DIVIDER), String(loadCell.get_scale()));
   mqtt.publish(mqttTopic(MQTT_TOPIC_GAIN), String(loadCellGain));
+  mqtt.publish(mqttTopic(MQTT_TOPIC_DELTA_T), String(deltaT));
+  mqtt.publish(mqttTopic(MQTT_TOPIC_DELTA_M), String(deltaM));
   mqtt.subscribe(mqttTopic(MQTT_TOPIC_TARE));
   mqtt.subscribe(mqttTopic(MQTT_TOPIC_DIVIDER));
   mqtt.subscribe(mqttTopic(MQTT_TOPIC_GAIN));
+  mqtt.subscribe(mqttTopic(MQTT_TOPIC_DELTA_T));
+  mqtt.subscribe(mqttTopic(MQTT_TOPIC_DELTA_M));
 }
 
 void messageReceived(String &topic, String &payload)
@@ -261,6 +294,15 @@ void messageReceived(String &topic, String &payload)
   else if (topic.endsWith(MQTT_TOPIC_GAIN))
   {
     setGain((byte)payload.toInt());
+  }
+  else if (topic.endsWith(MQTT_TOPIC_DELTA_T))
+  {
+    long dt = payload.toInt();
+    setDeltaT(dt < 0 ? 0 : dt);
+  }
+  else if (topic.endsWith(MQTT_TOPIC_DELTA_M))
+  {
+    setDeltaM(payload.toFloat());
   }
 }
 #endif
