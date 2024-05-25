@@ -22,12 +22,12 @@
 1. config.h létrehozása
 
 	```bash
-	cp config.h.example config.h
+	cp main/config.h.example main/config.h
 	```
 
 2. kapcsolódási mód beállítása
 
-	Az .ino fájl első soraiban adható meg, hogy Etherneten, vagy WiFin keresztül kapcsolódunk.
+	A [forráskód fájl](main/main.ino) első soraiban adható meg, hogy Etherneten vagy WiFin keresztül kapcsolódunk.
 
 	- WiFi
 

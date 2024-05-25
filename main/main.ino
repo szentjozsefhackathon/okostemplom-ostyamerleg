@@ -29,6 +29,7 @@
 #define LOADCELL_DEFAULT_GAIN LOADCELL_GAIN_128
 #define DEFAULT_DT 1000ul
 #define DEFAULT_DM .2f
+
 #include "config.h"
 
 #if WITH_ETHERNET
